@@ -8,7 +8,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Carrega as variáveis de ambiente ao iniciar o script
-caminho_env = Path(__file__).resolve().parent.parent / '.env'
+caminho_env = Path(__file__).resolve().parent / '.env'
 load_dotenv(dotenv_path=caminho_env)
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 
