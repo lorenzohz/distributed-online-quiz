@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:15
+    container_name: banco_quiz
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=quiz_online
+    ports:
+      - "5432:5432"
+    volumes:
+      # Executa o SQL para criação do banco pela primeira vez
+      - ./scripts/criar_banco.sql:/docker-entrypoint-initdb.d/init.sql
