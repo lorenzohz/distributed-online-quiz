@@ -23,6 +23,7 @@ MAPA DE ROTAS DA API REST - QUIZ ONLINE
    - URL: /ranking
    - Query Params: Nenhum
    - Corpo (JSON): Nenhum
+   - Resposta: Lista com as 10 maiores pontuações de jogadores que venceram.
 
 2. INICIAR NOVO JOGO (Tela de Novo Jogo)
    - Ação: Cria uma nova partida e valida se o nickname está disponível.
@@ -30,9 +31,10 @@ MAPA DE ROTAS DA API REST - QUIZ ONLINE
    - URL: /partida
    - Query Params: Nenhum
    - Corpo (JSON): 
-       { 
+        { 
            "nickname": "Lorenzo" 
-       }
+        }
+   - Resposta: ID para a nova partida criada.
 
 3. OBTER PERGUNTA (Tela de Pergunta)
    - Ação: Sorteia e retorna a próxima pergunta baseada na rodada atual.
@@ -40,6 +42,7 @@ MAPA DE ROTAS DA API REST - QUIZ ONLINE
    - URL: /pergunta?partida_id=<ID_DA_PARTIDA>
    - Query Params: partida_id (Ex: /pergunta?partida_id=5)
    - Corpo (JSON): Nenhum
+   - Resposta: Pergunta para ser respondida.
 
 4. ENVIAR RESPOSTA (Ação do Jogador)
    - Ação: Avalia a resposta, calcula bônus por tempo e atualiza estado.
@@ -47,12 +50,13 @@ MAPA DE ROTAS DA API REST - QUIZ ONLINE
    - URL: /responder
    - Query Params: Nenhum
    - Corpo (JSON): 
-       {
+        {
            "partida_id": 5,
            "questao_id": 42,
            "alternativa_escolhida": "b",
            "tempo_segundos": 15
-       }
+        }
+    - Resposta: 
 
 5. SOLICITAR AJUDA (Ação do Jogador)
    - Ação: Processa o uso de "meio_a_meio", "pulo" ou "passe_livre".
@@ -60,11 +64,12 @@ MAPA DE ROTAS DA API REST - QUIZ ONLINE
    - URL: /ajuda
    - Query Params: Nenhum
    - Corpo (JSON):
-       {
+        {
            "partida_id": 5,
            "questao_id": 42,
            "tipo_ajuda": "meio_a_meio" 
-       }
+        }
+    - Resposta: 
 """
 
 class ServidorREST(BaseHTTPRequestHandler):
@@ -75,7 +80,7 @@ class ServidorREST(BaseHTTPRequestHandler):
             dbname="quiz_online",
             user="postgres",
             password=DB_PASSWORD,
-            host="localhost",
+            host="127.0.0.1",
             port="5432"
         )
 
@@ -112,7 +117,7 @@ class ServidorREST(BaseHTTPRequestHandler):
                 self.enviar_resposta(500, {"erro": "Erro interno no servidor"})
 
             finally:
-                # fecha as portas com o banco
+                # Fecha as portas com o banco
                 if cursor:
                     cursor.close()
                 if conexao:
@@ -134,7 +139,7 @@ class ServidorREST(BaseHTTPRequestHandler):
                 conexao = self.obter_conexao()
                 cursor = conexao.cursor()
                 
-                # --- PASSO 1: Obter o estado atual da partida ---
+                # 1. Obter o estado atual da partida
                 cursor.execute("""
                     SELECT pergunta_atual, ajuda_meio_a_meio_usada, 
                            ajuda_pulo_usada, ajuda_passe_livre_usada, status 
@@ -154,7 +159,7 @@ class ServidorREST(BaseHTTPRequestHandler):
                     self.enviar_resposta(400, {"erro": f"Jogo encerrado. Status atual: {status}"})
                     return
                 
-                # --- PASSO 2: Determinar o nível com base na rodada ---
+                # 2. Determinar o nível com base na rodada
                 if pergunta_atual <= 3:
                     nivel_alvo = 'facil'
                 elif pergunta_atual <= 6:
@@ -167,9 +172,9 @@ class ServidorREST(BaseHTTPRequestHandler):
                     self.enviar_resposta(400, {"erro": "Todas as 10 perguntas já foram respondidas."})
                     return
 
-                # --- PASSO 3: Sortear uma pergunta que o jogador ainda não respondeu ---
-                # A subquery (NOT IN) garante que a pergunta não está no histórico da partida
-                # ORDER BY RANDOM() faz o sorteio
+                # 3. Sortear uma pergunta que o jogador ainda não respondeu
+                # Obs.: A subquery (NOT IN) garante que a pergunta não está no histórico da partida
+                # Obs.: ORDER BY RANDOM() faz o sorteio
                 query_sorteio = """
                     SELECT id, enunciado, alt_a, alt_b, alt_c, alt_d 
                     FROM questoes 
@@ -182,12 +187,12 @@ class ServidorREST(BaseHTTPRequestHandler):
                 questao = cursor.fetchone()
                 
                 if not questao:
-                    self.enviar_resposta(500, {"erro": f"Não há questões ainda não respondidas suficientes do nível '{nivel_alvo}' no banco de dados."})
+                    self.enviar_resposta(500, {"erro": f"Não há q no banco de dauestões ainda não respondidas suficientes do nível '{nivel_alvo}'dos."})
                     return
                     
                 questao_id, enunciado, alt_a, alt_b, alt_c, alt_d = questao
 
-                # --- PASSO 4: Registrar a pergunta no histórico da partida ---
+                # 4. Registrar a pergunta no histórico da partida
                 cursor.execute("""
                     INSERT INTO perguntas_partida (partida_id, questao_id, ordem) 
                     VALUES (%s, %s, %s)
@@ -196,7 +201,7 @@ class ServidorREST(BaseHTTPRequestHandler):
                 # Salva as alterações no banco (o registro da pergunta)
                 conexao.commit()
 
-                # --- PASSO 5: Montar o JSON de resposta ---
+                # 5. Montar o JSON de resposta
                 resposta = {
                     "questao_id": questao_id,
                     "ordem": pergunta_atual,

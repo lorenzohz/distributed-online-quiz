@@ -17,6 +17,8 @@ senha_banco = os.getenv("DB_PASSWORD")
 if not senha_banco:
     raise ValueError("A senha do banco não foi encontrada. Verifique o ficheiro .env.")
 
+print(senha_banco)
+
 # Dados das perguntas omitidos por brevidade (mantenha a sua lista de tuplos aqui)
 perguntas = [
     # Nível Fácil (Exemplos)
