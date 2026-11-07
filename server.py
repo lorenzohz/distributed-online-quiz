@@ -187,7 +187,7 @@ class ServidorREST(BaseHTTPRequestHandler):
                 questao = cursor.fetchone()
                 
                 if not questao:
-                    self.enviar_resposta(500, {"erro": f"Não há q no banco de dauestões ainda não respondidas suficientes do nível '{nivel_alvo}'dos."})
+                    self.enviar_resposta(500, {"erro": f"Não há questões no banco de questões ainda não respondidas suficientes do nível '{nivel_alvo}'."})
                     return
                     
                 questao_id, enunciado, alt_a, alt_b, alt_c, alt_d = questao
@@ -294,7 +294,44 @@ class ServidorREST(BaseHTTPRequestHandler):
                     conexao.close()
 
         elif operacao == "/responder":
-            self.enviar_resposta(200, {"mensagem": "Lógica de validar resposta pendente"})
+            partida_id = dados_recebidos.get("partida_id")
+            questao_id = dados_recebidos.get("questao_id")
+            alternativa_escolhida = dados_recebidos.get("alternativa_escolhida")
+            tempo_segundos = dados_recebidos.get("tempo_segundos")
+
+            conexao = None
+            cursor = None
+            try:
+                conexao = self.obter_conexao()
+                cursor = conexao.cursor()
+                
+                # Busca a resposta correta para a questão alvo
+                query = """ SELECT nivel, alt_correta 
+                            FROM questoes 
+                            WHERE questao_id = %s"""
+                cursor.execute(query, (questao_id,))
+                
+                nivel, alternativa_correta = cursor.fetchone()
+
+                pontuacao = __conta_pontuacao_pergunta(nivel, tempo_segundos)
+
+                if alternativa_escolhida == alternativa_correta:
+                    self.enviar_resposta(201, {
+                        "acertou":True,
+                        "pontuacao":pontuacao,
+                    })
+
+            except Exception as e:
+                if conexao:
+                    conexao.rollback()
+                print(f"Erro no banco de dados: {e}")
+                self.enviar_resposta(500, {"erro": "Erro interno no servidor"})
+
+            finally:
+                if cursor:
+                    cursor.close()
+                if conexao:
+                    conexao.close()
 
         elif operacao == "/ajuda":
             self.enviar_resposta(200, {"mensagem": "Lógica de ajudas pendente"})
@@ -313,6 +350,22 @@ class ServidorREST(BaseHTTPRequestHandler):
 
         self.wfile.write(conteudo)
 
+def __conta_pontuacao_pergunta(nivel, tempo):
+    """Contabiliza quantos pontos a questão resultou"""
+    if nivel == "facil":
+        pontos = 50
+        fator = 1
+    elif nivel == "medio":
+        pontos = 100
+        fator = 1.5
+    elif nivel == "dificil":
+        pontos = 300
+        fator = 2
+    elif nivel == "final":
+        pontos = 1000
+        fator = 10
+
+    return round(pontos + max(0, (60 - tempo)) * fator, 3)
 
 
 if __name__ == "__main__":

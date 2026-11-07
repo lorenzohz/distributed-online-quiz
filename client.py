@@ -235,6 +235,8 @@ def ciclo_perguntas(partida_id):
     alternativas = {}
     ajudas = {}
     pontuacao = 0
+    novos_pontos = 0
+    questao_id = 0
 
     __delay(mensagem=f"\nIniciando partida!", tempo=5)
     while nivel < 10:
@@ -244,6 +246,7 @@ def ciclo_perguntas(partida_id):
         
         nivel = dados["ordem"]
         enunciado = dados["enunciado"]
+        questao_id = dados["questao_id"]
 
         alternativas['a'] = dados["alternativas"]["a"]
         alternativas['b'] = dados["alternativas"]["b"]
@@ -255,6 +258,7 @@ def ciclo_perguntas(partida_id):
         ajudas["passe_livre"] = dados["ajudas_disponiveis"]["passe_livre"]
 
         tempo_inicio = time.perf_counter()
+        tempo_final = 0
         respondida = False
         while not respondida:
             opcao = realizar_pergunta(nivel, enunciado, alternativas, ajudas)
@@ -262,17 +266,43 @@ def ciclo_perguntas(partida_id):
                 print("\nImplementar lógica de ajuda")
 
             elif opcao in ('a', 'b', 'c', 'd'):
-                print("\nImplementar lógica de resposta")
-                respondida = True
-                acertou = opcao == 'a'
+                try:
+                    tempo_final = time.perf_counter()
+                    payload = {
+                        "partida_id":partida_id,
+                        "questao_id":questao_id,
+                        "alternativa_escolhida":opcao,
+                        "tempo_segundos":tempo_final-tempo_inicio,
+                    }
 
-            else:
-                return 2, pontuacao
+                    resposta = requests.post(url_resposta, json=payload, timeout=10)
+
+                    if resposta.status_code == 201:
+                        dados = resposta.json()
+                        respondida = True
+                        acertou = dados.get("acertou")
+                        if acertou:
+                            novos_pontos = dados.get("pontuacao")
+                            pontuacao += novos_pontos
+            
+                    elif resposta.status_code == 500:
+                        dados = resposta.json()
+                        print(f"\nErro no servidor: {dados.get('erro')}")
+                        return
+            
+                    else:
+                        print(f"\nErro desconhecido: {resposta.status_code}")
+                        return
+                
+                except requests.exceptions.ConnectionError:
+                    print(f"\nFalha de conexão: Não foi possível conectar ao servidor em {SERVICO_URL}.")
+                    return
+            
+                except Exception as e:
+                    print(f"Erro inesperado: {e}")
+                    return
 
         if acertou:
-            tempo_final = time.perf_counter()
-            novos_pontos = __conta_pontuacao_pergunta(nivel, tempo_final - tempo_inicio)
-            pontuacao += novos_pontos
             print(f"\nCerta Resposta! Você ganhou {novos_pontos:.3f} pontos! |-/".replace('.', ','))
             if nivel < 10:
                 __delay(mensagem=f"Pontuação Atual: {pontuacao:.3f} pontos!\n\nPrepare-se!".replace('.', ','),tempo=5)
@@ -424,24 +454,6 @@ def __formata_ajuda(chave):
     elif chave == "passe_livre":
         formatado = "Acertar questão (sem bônus)"
     return formatado
-
-
-def __conta_pontuacao_pergunta(nivel, tempo):
-    """Contabiliza quantos pontos a questão resultou"""
-    if nivel < 4:
-        pontos = 50
-        fator = 1
-    elif nivel < 7:
-        pontos = 100
-        fator = 1.5
-    elif nivel < 10:
-        pontos = 300
-        fator = 2
-    elif nivel == 10:
-        pontos = 1000
-        fator = 10
-
-    return round(pontos + max(0, (60 - tempo)) * fator, 3)
 
 def __delay(mensagem=None, tempo=3):
     """Rotina que aplica pausas com contagem para a transição de estados"""
