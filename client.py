@@ -26,24 +26,6 @@ pergunta final -> (responder certo -> fim de jogo vitória) | (responder errado 
 fim de jogo/derrota -> inicio
 '''
 
-# Dados Mock:
-def __get_ranking():
-    return json.dumps({
-        "ranking": [
-            {"nickname": "Shadow", "pontuacao": 1500},
-            {"nickname": "Ninja", "pontuacao": 1350},
-            {"nickname": "Pixel", "pontuacao": 1200},
-            {"nickname": "GamerX", "pontuacao": 1100},
-            {"nickname": "Zero", "pontuacao": 980},
-            {"nickname": "Luna", "pontuacao": 850},
-            {"nickname": "Cyber", "pontuacao": 720},
-            {"nickname": "Ghost", "pontuacao": 600},
-            {"nickname": "Raven", "pontuacao": 450},
-            {"nickname": "Player10", "pontuacao": 300}
-        ]
-    })
-
-
 def cliente():
     "Implementa a lógica do jogo de perguntas no lado do cliente"
     estado = 'inicio'

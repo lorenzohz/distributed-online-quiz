@@ -8,7 +8,7 @@ Projeto desenvolvido para a disciplina de Sistemas Distribuídos pelos alunos:
 - Lorenzo Henrique Zanetti (RA: 133076)
 - Vitor da Rocha Machado (RA: 132769)
 
-Este projeto é uma aplicação em Python para um jogo de perguntas e respostas com arquitetura distribuída, banco de dados PostgreSQL e balanceamento de carga HTTP.
+Este projeto é uma aplicação em Python para um jogo de perguntas e respostas com arquitetura distribuída (REST), banco de dados PostgreSQL e balanceamento de carga HTTP.
 
 ## Requisitos
 
@@ -47,19 +47,24 @@ copy .env.example .env
 DB_PASSWORD=sua_senha
 ```
 
-3. Suba o banco PostgreSQL:
+3. Suba o banco PostgreSQL (com Docker Desktop rodando em segundo plano):
 
 ```bash
 docker compose up -d
 ```
 
-4. Inicialize a base de dados com as tabelas e as perguntas:
+4. Caso ocorra algum problema quanto ao acesso correto dos dados no BD, a porta utilizada pelo Docker e pelo PostgreSQl é a mesma. Então possivelmente o PostgreSQL rodando em plano de fundo deverá ser fechado:
 
 ```bash
-python scripts\popular_banco.py
+# Retirando o BD local para o pipeline utilizar o Docker corretamente:
+win + r
+services.msc
+OK
+postgresql-x64-... (botão direito -> Parar)
+# Depois, no terminal do projeto:
+docker compose down -v
+docker compose up -d db
 ```
-
-> Observação: o script `scripts/criar_banco.sql` é executado automaticamente pelo Docker ao iniciar o container do PostgreSQL. O script `popular_banco.py` popula as perguntas no banco.
 
 ## Como executar
 

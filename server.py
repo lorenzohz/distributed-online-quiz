@@ -69,7 +69,7 @@ MAPA DE ROTAS DA API REST - QUIZ ONLINE
         {
            "partida_id": 5,
            "questao_id": 42,
-           "tipo_ajuda": "meio_a_meio" 
+           "tipo_ajuda": 1 
         }
     - Resposta: Ajuda aplicada e disponibilidades atualizadas. O "meio_a_meio"
       retorna as alternativas restantes; "pulo" retorna a questão substituta;
