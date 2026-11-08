@@ -1,4 +1,4 @@
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import os
 import math
 from random import sample
@@ -676,7 +676,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     porta_escolhida = args.porta
 
-    servidor = HTTPServer((ENDERECO, porta_escolhida), ServidorREST)
+    servidor = ThreadingHTTPServer((ENDERECO, porta_escolhida), ServidorREST)
+    servidor.daemon_threads = True
     print(f"Servidor REST (Nó Servidor) iniciado em {ENDERECO}:{porta_escolhida}, aguardando requisições...")
     
     try:

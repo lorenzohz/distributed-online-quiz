@@ -1,8 +1,9 @@
 import json
+import os
 import requests
 import time
 
-SERVICO_URL = "http://127.0.0.1:8000"
+SERVICO_URL = os.getenv("QUIZ_SERVICE_URL", "http://127.0.0.1:8000").rstrip("/")
 
 # formato = http://[endereco]:[porta]/[operação]?[parametros]
 # Conexão deve ser realizada para o Balanceador de Carga
