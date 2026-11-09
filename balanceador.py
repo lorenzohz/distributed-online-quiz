@@ -5,7 +5,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import http.client
 import json
 import logging
+import os
+import shutil
+import subprocess
 import threading
+import time
+from urllib.error import URLError
+from urllib.parse import urlsplit
+from urllib.request import urlopen
 
 
 SERVIDORES = (
@@ -147,6 +154,21 @@ def main():
     parser.add_argument("--host", default="127.0.0.1", help="Endereço de escuta")
     parser.add_argument("--porta", type=int, default=8000, help="Porta de escuta")
     parser.add_argument(
+        "--ngrok-bin",
+        default=os.getenv("NGROK_BIN", "ngrok"),
+        help="Caminho do executável do Ngrok (ou variável NGROK_BIN)",
+    )
+    parser.add_argument(
+        "--ngrok-api",
+        default="http://127.0.0.1:4040/api/tunnels",
+        help="URL da API local do agente Ngrok",
+    )
+    parser.add_argument(
+        "--sem-ngrok",
+        action="store_true",
+        help="Executa apenas para desenvolvimento local, sem abrir túnel Ngrok",
+    )
+    parser.add_argument(
         "--log",
         default="balanceador.log",
         help="Arquivo para registrar as requisições",
@@ -177,12 +199,81 @@ def main():
     print(f"Balanceador RR iniciado em {args.host}:{args.porta}")
     print("Servidores: " + ", ".join(f"{nome}={host}:{porta}" for nome, host, porta in SERVIDORES))
 
+    processo_ngrok = None
     try:
+        if not args.sem_ngrok:
+            executavel_ngrok = shutil.which(args.ngrok_bin)
+            if executavel_ngrok is None:
+                raise RuntimeError(
+                    f"Executável Ngrok não encontrado: {args.ngrok_bin}. "
+                    "Instale o Ngrok e configure o token de autenticação."
+                )
+            processo_ngrok = subprocess.Popen(
+                [executavel_ngrok, "http", f"http://{args.host}:{args.porta}"],
+            )
+            url_publica = aguardar_tunel_ngrok(
+                args.ngrok_api,
+                args.porta,
+                processo_ngrok,
+            )
+            print(f"URL pública Ngrok: {url_publica}")
+            print(f"Configure o cliente com QUIZ_SERVICE_URL={url_publica}")
         servidor.serve_forever()
     except KeyboardInterrupt:
         print("\nEncerrando balanceador...")
+    except (OSError, RuntimeError) as erro:
+        parser.error(str(erro))
     finally:
         servidor.server_close()
+        if processo_ngrok is not None:
+            encerrar_processo(processo_ngrok)
+
+
+def aguardar_tunel_ngrok(url_api, porta, processo, timeout=20):
+    prazo = time.monotonic() + timeout
+    ultimo_erro = None
+    while time.monotonic() < prazo:
+        if processo.poll() is not None:
+            raise RuntimeError(
+                "O processo Ngrok encerrou antes de disponibilizar o túnel. "
+                "Verifique a configuração e o token de autenticação."
+            )
+        try:
+            with urlopen(url_api, timeout=1) as resposta:
+                dados = json.load(resposta)
+            for tunel in dados.get("tunnels", []):
+                endereco = tunel.get("config", {}).get("addr", "")
+                url_publica = tunel.get("public_url", "")
+                endereco_parseavel = (
+                    endereco if "://" in endereco else f"http://{endereco}"
+                )
+                try:
+                    porta_destino = urlsplit(endereco_parseavel).port
+                except ValueError:
+                    continue
+                if (
+                    porta_destino == porta
+                    and url_publica.startswith("https://")
+                ):
+                    return url_publica
+        except (URLError, TimeoutError, json.JSONDecodeError) as erro:
+            ultimo_erro = erro
+        time.sleep(0.25)
+
+    detalhe = f" Detalhe: {ultimo_erro}" if ultimo_erro else ""
+    raise RuntimeError(
+        f"Tempo esgotado aguardando o túnel Ngrok na porta {porta}.{detalhe}"
+    )
+
+
+def encerrar_processo(processo):
+    if processo.poll() is None:
+        processo.terminate()
+        try:
+            processo.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            processo.kill()
+            processo.wait(timeout=5)
 
 
 if __name__ == "__main__":

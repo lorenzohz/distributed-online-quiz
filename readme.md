@@ -80,29 +80,53 @@ python server.py -p 8002
 python server.py -p 8003
 ```
 
-### 2) Iniciar o balanceador de carga
+### 2) Instalar e autenticar o Ngrok
 
-Em outro terminal:
+Instale o agente Ngrok na máquina que executará o balanceador e confira se o comando `ngrok` está disponível no terminal:
 
-```bash
+```powershell
+ngrok version
+```
+
+Configure o token da sua conta uma única vez. Obtenha-o no painel oficial do Ngrok e execute o comando localmente:
+
+```powershell
+ngrok config add-authtoken SEU_TOKEN
+```
+
+### 3) Iniciar o balanceador e o túnel público
+
+Com o PostgreSQL e os três servidores em execução, inicie o balanceador em outro terminal:
+
+```powershell
 python balanceador.py
 ```
 
-O balanceador encaminha requisições para os nós em `127.0.0.1:8001`, `127.0.0.1:8002` e `127.0.0.1:8003`.
+Por padrão, o balanceador inicia o agente Ngrok instalado localmente e abre um único túnel HTTP para `127.0.0.1:8000`. Aguarde até que ele exiba a URL pública HTTPS e mantenha esse terminal aberto. Se o comando não estiver no `PATH`, informe o caminho do executável:
 
-### 3) Executar o cliente
+```powershell
+python balanceador.py --ngrok-bin "C:\caminho\para\ngrok.exe"
+```
 
-Em um terminal adicional:
+O cliente externo acessa apenas o balanceador pela URL pública. O balanceador distribui as requisições entre `127.0.0.1:8001`, `127.0.0.1:8002` e `127.0.0.1:8003`. Não abre túneis Ngrok para cada servidor ou para o PostgreSQL.
 
-```bash
+### 4) Executar o cliente
+
+Para testar pelo cliente interativo, configure a URL pública no computador em que ele será executado:
+
+```powershell
+$env:QUIZ_SERVICE_URL = "https://URL-PUBLICA-EXIBIDA-PELO-NGROK"
 python client.py
 ```
 
-O cliente acessa o serviço pela URL padrão:
+Para execução apenas local, inicie o balanceador sem túnel Ngrok e use o endereço padrão do cliente:
 
-```text
-http://127.0.0.1:8000
+```powershell
+python balanceador.py --sem-ngrok
+python client.py
 ```
+
+O cliente acessa `http://127.0.0.1:8000` por padrão. Para encerrar, use `Ctrl+C` no terminal do balanceador; isso também encerra o agente Ngrok que ele iniciou. Pare os servidores nos respectivos terminais e, se desejar parar o PostgreSQL, execute `docker compose down`.
 
 ## Estrutura principal do projeto
 
